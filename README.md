@@ -23,6 +23,9 @@ path = path_builder.path_list
 # path_builder.debug_lines_factors(show=False)
 path_builder.draw_path()
 ```
+<p align="center">
+  <img src="https://github.com/JonathanCourtois/zigzag_path/blob/main/example.png" title="example">
+</p>
 
 ## Publications and Citation
 
