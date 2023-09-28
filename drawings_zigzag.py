@@ -2,14 +2,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class area():
-    def __init__(self, height:float=10., width:float=10.) -> None:
-        self.height = height
-        self.width  = width
-        self.diag   = np.sqrt(height**2 + width**2)
+    def __init__(self, pcb_dim:tuple=(10.,10.), space_ant_dim:tuple=(0.,0.), space_ant_pos:tuple=(0.,0.), draw_dim:tuple=(0.,0.), draw_pos:tuple=(0.,0.),
+                 margin:tuple=(0.,0.), align_to_pcb_diag:bool=False) -> None:
+        """Generate all the area parameters
+           All dim are tuple like (width,height) and pos like (x,y)
+        """
+        
+        ### New Version
+        # Get pcb parameters
+        (self.pcb_w, self.pcb_h) = pcb_dim
+        
+        # Get space antenna parameters
+        if space_ant_dim == (0,0):
+            (self.space_ant_w,self.space_ant_h) = pcb_dim
+        else:
+            (self.space_ant_w,self.space_ant_h) = space_ant_dim
+        
+        # get margin options if needed
+        (self.margin_x, self.margin_y) = margin
+        
+        # Get Draw area (the area where the computation will be done)
+        if draw_dim == (0,0):
+            (self.draw_w,self.draw_h) = space_ant_dim
+        else:
+            (self.draw_w,self.draw_h) = draw_dim
+        
+        # logic check : draw inside space ant inside pcb :
+        self.maternel_rectangle_fit_exercice()
+        
+        # Set if the draw area diagonal must be parallel the pcb diagonal
+        self.align_to_pcb_diag = align_to_pcb_diag
+        if self.align_to_pcb_diag :
+            pass
+        
+        #### OLD VERSION
+        self.width  = self.draw_w
+        self.height = self.draw_h
+        self.diag   = np.sqrt(self.height**2 + self.width**2)
         # Diagonale angle (low_left angle of the rectangle) in °
-        self.d_angle = np.rad2deg(np.arccos(width / self.diag))
+        self.d_angle = np.rad2deg(np.arccos(self.width / self.diag))
         # angle, in °, of line from ordonate axis to abscisse axis -> link to director factor a of ax+b
         self.attack_angle = self.d_angle - np.rad2deg(np.pi/2)
+            
+        
+    def maternel_rectangle_fit_exercice(self):
+        # now logic draw area must be inside space antenna parameters, with boundaries. and they need to be inside pcb
+        # start from outside - space_ant inside pcb
+        if self.space_ant_w > self.pcb_w :
+            self.space_ant_w = self.pcb_w
+        if self.space_ant_h > self.pcb_h :
+            self.space_ant_h = self.pcb_h
+        # then draw area inside space_ant+boundaries
+        if self.draw_w > self.space_ant_w - self.margin_x :
+            self.draw_w = self.space_ant_w - self.margin_x               
+        if self.draw_h > self.space_ant_h - self.margin_y :
+            self.draw_h = self.space_ant_h - self.margin_y      
 
     def print(self):
         print(f"H : {self.height} | W : {self.width}")
@@ -102,15 +149,16 @@ class horizontal_builder():
         for i in range(len(self.vert_builder.vertical_lines_factors)-1):
             [va,vb] = self.vert_builder.vertical_lines_factors[i]
             
+            # check limit on space antena area
             if pos :    # pos = true -> top
-                if vb > self.draw_area.height:
+                if vb > self.draw_area.space_ant_h:
                     [va,vb] = self.vert_builder.vertical_lines_factors[i+1]
-                    vb = self.draw_area.height - (a * ((self.draw_area.height-vb) / va) )
+                    vb = self.draw_area.space_ant_h - (a * ((self.draw_area.space_ant_h-vb) / va) )
 
                 [nva,nvb] = self.vert_builder.vertical_lines_factors[i+1]
-                if nvb > self.draw_area.height:
-                    xh = (self.draw_area.height - nvb) / nva
-                    tmp_b = self.draw_area.height - a * xh
+                if nvb > self.draw_area.space_ant_h:
+                    xh = (self.draw_area.space_ant_h - nvb) / nva
+                    tmp_b = self.draw_area.space_ant_h - a * xh
                     # intersect de va,vb and a,b -> x<0
                     x_i = (tmp_b-vb) / (va-a)
                     if x_i >= 0:
@@ -125,16 +173,16 @@ class horizontal_builder():
                 y_w     = 0
 
                 # check right out bound
-                if x0 > self.draw_area.width:
+                if x0 > self.draw_area.space_ant_w:
                     [va,vb] = self.vert_builder.vertical_lines_factors[i+1]
-                    x_w = self.draw_area.width
+                    x_w = self.draw_area.space_ant_w
                     x0  = x_w
                     y_w = va * x_w + vb
 
                 tmp_b = -1 * np.tan(np.deg2rad(self.draw_area.d_angle)) * x0
-                tmp_y = a * self.draw_area.width + tmp_b
+                tmp_y = a * self.draw_area.space_ant_w + tmp_b
                 [nva,nvb] = self.vert_builder.vertical_lines_factors[i+1]
-                n_y   = nva * self.draw_area.width + nvb
+                n_y   = nva * self.draw_area.space_ant_w + nvb
 
                 if n_y > tmp_y:
                     y_w = n_y - tmp_y
@@ -149,6 +197,7 @@ class horizontal_builder():
     
 class path_builder():
     def __init__(self, draw_area, nb_brin:int=1 , base_brin_length:int=3, start_pos_top:bool = True) -> None:
+        # path builder must be based on space antenna area
         self.vertical_builder   = vertical_builder(draw_area, nb_brin=nb_brin , base_brin_length=base_brin_length)
         self.horizontal_builder = horizontal_builder(draw_area, self.vertical_builder, start_pos_top=start_pos_top)
         self.start_pos_top      = start_pos_top
@@ -161,7 +210,7 @@ class path_builder():
     
     def debug_lines_factors(self, show:bool=True):
         [v_l_fs, h_l_fs] = self.get_v_h_lines_factors()
-        x = np.arange(0,self.draw_area.width+1)
+        x = np.arange(0,self.draw_area.space_ant_w+1)
         for [a,b] in v_l_fs:
             y = a*x+b
             plt.plot(y)
@@ -172,18 +221,19 @@ class path_builder():
         diag = np.tan(np.deg2rad(self.draw_area.d_angle))*x
         plt.plot(diag, color='gray', alpha=0.5)
         # plot option
-        title = f"h:{self.draw_area.height} | w:{self.draw_area.width} |"
+        title = f"space_ant_h:{self.draw_area.space_ant_h} | space_ant_w:{self.draw_area.space_ant_w} |"
         title = f"{title} b_length:{self.vertical_builder.base_brin_length} |"
         title = f"{title} nb_brin:{self.vertical_builder.nb_brin} | start_top:{self.start_pos_top}"
         plt.title(title)
         plt.grid()
-        plt.xlim([0, self.draw_area.width])
-        plt.ylim([0, self.draw_area.height])
+        plt.xlim([0, self.draw_area.space_ant_w])
+        plt.ylim([0, self.draw_area.space_ant_h])
         if show:
             plt.show()
 
     def draw_path(self, show:bool=True):
-        x = np.arange(0,self.draw_area.width+1)
+        # diplay must be based on the all pcb
+        x = np.arange(0,self.draw_area.pcb_w+1)
         # Path point drawing
         for [a,b] in self.path_list:
             plt.scatter(a, b)  
@@ -201,13 +251,13 @@ class path_builder():
         diag = np.tan(np.deg2rad(self.draw_area.d_angle))*x
         plt.plot(diag, color='gray', alpha=0.5)
         # plot option
-        title = f"h:{self.draw_area.height} | w:{self.draw_area.width} |"
+        title = f"space_ant_h:{self.draw_area.space_ant_h} | space_ant_w:{self.draw_area.space_ant_w} |"
         title = f"{title} b_length:{self.vertical_builder.base_brin_length} |"
         title = f"{title} nb_brin:{self.vertical_builder.nb_brin} | start_top:{self.start_pos_top}"
         plt.title(title)
         plt.grid()
-        plt.xlim([0, self.draw_area.width])
-        plt.ylim([0, self.draw_area.height])
+        plt.xlim([0, self.draw_area.pcb_w])
+        plt.ylim([0, self.draw_area.pcb_h])
         if show:
             plt.show()
     
@@ -241,11 +291,17 @@ class path_builder():
         # last point
         vlinef = v_lines_f[-1] # a0,b0
         if pos:
-            yf     = self.draw_area.height
+            yf     = self.draw_area.space_ant_h
             xf     = (yf-vlinef[1]) / vlinef[0]
         else:
-            xf     = self.draw_area.width
+            xf     = self.draw_area.space_ant_w
             yf     = vlinef[0] * xf + vlinef[1]
         path.append([xf,yf])
+        
+        # now path is a list of coordinate in space antenna area
+        # we must transpose them in the pcb area
+        for i in range(len(path)):
+            path[i] = [path[i][0] + self.draw_area.pcb_w - self.draw_area.space_ant_w, 
+                       path[i][1] + self.draw_area.pcb_h - self.draw_area.space_ant_h]
 
         self.path_list = path

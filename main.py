@@ -21,10 +21,10 @@ def test_configs(dims, base_brin_lengths, nb_brins, start_pos_tops):
                     path_builder.draw_path()
                     
 
-def unitary_test(h, w, nb_brin, base_brin_length:float=5, start_pos_top:bool=True):
+def unitary_test(dim, nb_brin, base_brin_length:float=5, start_pos_top:bool=True):
     #### How to use it - get path list
-    da = drawings_zigzag.area(h,w)
-
+    da = drawings_zigzag.area((60,40),(20,40),(0,0),(20,20))
+    # pcb_dim:tuple=(10.,10.), space_ant_dim:tuple=(0.,0.), space_ant_pos:tuple=(0.,0.), draw_dim:tuple=(0.,0.), draw_pos:tuple=(0.,0.)
     path_builder = drawings_zigzag.path_builder(da, nb_brin=nb_brin, base_brin_length=base_brin_length, start_pos_top=start_pos_top)
     ### end
     # to get path list use :
@@ -35,14 +35,14 @@ def unitary_test(h, w, nb_brin, base_brin_length:float=5, start_pos_top:bool=Tru
 
 
 def main():
-    unitary_test(40, 20, 3, start_pos_top=True)
-    unitary_test(40, 20, 6, start_pos_top=False)
+    unitary_test((20, 20), 3, start_pos_top=True)
+    # unitary_test(40, 20, 6, start_pos_top=False)
 
-    dims                = [[20,20],[20,40],[40,20]]
-    base_brin_lengths   = [5.0]
-    nb_brins            = [1,4,5,8,9,58]
-    start_pos_tops      = [True,False]  
-    test_configs(dims, base_brin_lengths, nb_brins, start_pos_tops)
+    # dims                = [[20,20],[20,40],[40,20]]
+    # base_brin_lengths   = [5.0]
+    # nb_brins            = [1,4,5,8,9,58]
+    # start_pos_tops      = [True,False]  
+    # test_configs(dims, base_brin_lengths, nb_brins, start_pos_tops)
 
 if __name__ == '__main__':
     main()
